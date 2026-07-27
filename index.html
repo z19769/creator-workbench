@@ -211,8 +211,6 @@ ul{list-style:none}
       <button class="nav-item" data-page="viral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>爆款热点二创</button>
       <button class="nav-item" data-page="review"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>内容复盘</button>
       <button class="nav-item" data-page="memo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>备忘录</button>
-      <button class="nav-item" data-page="speed"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>速算练习</button>
-      <button class="nav-item" data-page="shenlun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>申论积累</button>
     </nav>
     <div class="drawer-foot">
       数据存于本机浏览器<br>
@@ -265,20 +263,9 @@ ul{list-style:none}
     </section>
 
     <!-- 6. 速算练习 -->
-    <section class="page" id="page-speed">
-      <div class="page-title">速算练习</div>
-      <div class="page-sub">来自微信专辑自动导入</div>
-      <div id="speedList"></div>
-      <div class="source-note" id="speedNote">尚未接入微信专辑来源。提供来源后可自动同步题目。</div>
-    </section>
+    <!-- 6. 速算练习（已取消） -->
 
-    <!-- 7. 申论积累 -->
-    <section class="page" id="page-shenlun">
-      <div class="page-title">申论积累</div>
-      <div class="page-sub">来自微信专辑自动导入</div>
-      <div id="shenlunList"></div>
-      <div class="source-note" id="shenlunNote">尚未接入微信专辑来源。提供来源后可自动同步素材。</div>
-    </section>
+    <!-- 7. 申论积累（已取消） -->
   </main>
 
   <button class="fab" id="fab" aria-label="新增">
@@ -327,7 +314,6 @@ function def(){return{
     {id:uid('m'),text:'',done:false},
     {id:uid('m'),text:'',done:false}
   ],
-  speed:[], shenlun:[],
   inspireCache:null, viralCache:null, cacheDate:''
 }}
 let state=load();
@@ -357,7 +343,7 @@ function switchPage(p){
   curPage=p;
   document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.page===p));
   document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+p));
-  const titles={plan:'每日计划',inspire:'选题灵感',viral:'爆款二创',review:'内容复盘',memo:'备忘录',speed:'速算练习',shenlun:'申论积累'};
+  const titles={plan:'每日计划',inspire:'选题灵感',viral:'爆款二创',review:'内容复盘',memo:'备忘录'};
   document.getElementById('topTitle').textContent=titles[p];
   const fab=document.getElementById('fab');
   fab.style.display=(p==='plan'||p==='review'||p==='memo')?'flex':'none';
@@ -391,38 +377,43 @@ document.getElementById('fab').onclick=()=>{
   else if(curPage==='memo')addMemoLine();
 };
 
-/* ============ Inspire (Gist) ============ */
-async function fetchGist(){
-  if(!window.GIST_ID){return null}
+/* ============ Inspire (优先同域 daily.json，回退 Gist) ============ */
+async function fetchDaily(){
+  // 优先：同域 daily.json（与网页同在 github.io，国内访问稳定不被墙）
   try{
-    const url=window.GITHUB_TOKEN
-      ?`https://api.github.com/gists/${window.GIST_ID}`
-      :`https://gist.githubusercontent.com/${window.GIST_ID}/raw`;
-    const opt=window.GITHUB_TOKEN?{headers:{Authorization:'token '+window.GITHUB_TOKEN}}:{};
-    const r=await fetch(url,opt);
-    if(!r.ok)throw 0;
-    const data=await r.json();
-    let raw;
-    if(data.files){const f=Object.values(data.files)[0];raw=f?f.content:''}
-    else raw=await r.text();
-    return JSON.parse(raw);
-  }catch(e){return null}
+    const r=await fetch('daily.json?t='+Date.now(),{cache:'no-store'});
+    if(r.ok){return await r.json()}
+  }catch(e){}
+  // 回退：Gist（国内可能超时）
+  if(window.GIST_ID){
+    try{
+      const url=window.GITHUB_TOKEN
+        ?`https://api.github.com/gists/${window.GIST_ID}`
+        :`https://gist.githubusercontent.com/${window.GIST_ID}/raw`;
+      const opt=window.GITHUB_TOKEN?{headers:{Authorization:'token '+window.GITHUB_TOKEN}}:{};
+      const r=await fetch(url,opt);
+      if(!r.ok)throw 0;
+      const data=await r.json();
+      let raw;
+      if(data.files){const f=Object.values(data.files)[0];raw=f?f.content:''}
+      else raw=await r.text();
+      return JSON.parse(raw);
+    }catch(e){}
+  }
+  return null;
 }
 async function renderInspire(force){
   const box=document.getElementById('inspireList');
-  if(!window.GIST_ID){
-    box.innerHTML='<div class="empty">尚未接入云端 Gist。<br>提供 GitHub Token 后我会接入并自动推送每日灵感。</div>';return;
-  }
   if(!force&&state.inspireCache&&state.cacheDate===today()){
     drawInspire(state.inspireCache);return;
   }
   box.innerHTML='<div class="loading"><div class="spinner"></div>正在拉取今日灵感…</div>';
-  const g=await fetchGist();
+  const g=await fetchDaily();
   if(g&&g.inspire){
     state.inspireCache=g.inspire;state.viralCache=g.viral||null;state.cacheDate=today();save();
     drawInspire(g.inspire);
   }else{
-    box.innerHTML='<div class="empty">拉取失败或 Gist 暂无数据。点右上角刷新重试。</div>';
+    box.innerHTML='<div class="empty">拉取失败，点右上角刷新重试。</div>';
   }
 }
 function drawInspire(list){
@@ -446,19 +437,16 @@ function drawInspire(list){
 /* ============ Viral ============ */
 async function renderViral(force){
   const box=document.getElementById('viralList');
-  if(!window.GIST_ID){
-    box.innerHTML='<div class="empty">尚未接入云端 Gist。<br>提供 GitHub Token 后我会接入并自动推送每日热点与二创角度。</div>';return;
-  }
   if(!force&&state.viralCache&&state.cacheDate===today()){
     drawViral(state.viralCache);return;
   }
   box.innerHTML='<div class="loading"><div class="spinner"></div>正在拉取今日热点…</div>';
-  const g=await fetchGist();
+  const g=await fetchDaily();
   if(g&&g.viral){
     state.viralCache=g.viral;state.inspireCache=g.inspire||null;state.cacheDate=today();save();
     drawViral(g.viral);
   }else{
-    box.innerHTML='<div class="empty">拉取失败或 Gist 暂无数据。点右上角刷新重试。</div>';
+    box.innerHTML='<div class="empty">拉取失败，点右上角刷新重试。</div>';
   }
 }
 function drawViral(list){
@@ -539,20 +527,6 @@ function renderMemo(){
 function addMemoLine(){state.memo.push({id:uid('m'),text:'',done:false});save();renderMemo();setTimeout(()=>{const ls=document.querySelectorAll('.memo-line');const last=ls[ls.length-1];if(last)last.querySelector('input').focus()},50)}
 document.getElementById('memoAdd').onclick=addMemoLine;
 
-/* ============ Speed / Shenlun ============ */
-function renderSpeed(){
-  const box=document.getElementById('speedList');
-  const items=state.speed||[];
-  if(!items.length){box.innerHTML='<div class="empty">暂无题目</div>';return}
-  box.innerHTML=items.map(x=>`<div class="pa-item"><div class="pi-title">${esc(x.title)}</div>${x.meta?`<div class="pi-meta">${esc(x.meta)}</div>`:''}<div class="pi-content">${esc(x.content)}</div></div>`).join('');
-}
-function renderShenlun(){
-  const box=document.getElementById('shenlunList');
-  const items=state.shenlun||[];
-  if(!items.length){box.innerHTML='<div class="empty">暂无素材</div>';return}
-  box.innerHTML=items.map(x=>`<div class="pa-item"><div class="pi-title">${esc(x.title)}</div>${x.meta?`<div class="pi-meta">${esc(x.meta)}</div>`:''}<div class="pi-content">${esc(x.content)}</div></div>`).join('');
-}
-
 /* ============ Render dispatcher ============ */
 function render(p){
   if(p==='plan')renderPlan();
@@ -560,8 +534,6 @@ function render(p){
   else if(p==='viral')renderViral(false);
   else if(p==='review')renderReview();
   else if(p==='memo')renderMemo();
-  else if(p==='speed')renderSpeed();
-  else if(p==='shenlun')renderShenlun();
 }
 
 /* ============ Refresh ============ */

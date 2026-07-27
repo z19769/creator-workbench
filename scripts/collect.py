@@ -1,46 +1,43 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-æ¯æ—¥é‡‡é›†ä¸ç”Ÿæˆè„šæœ¬
-- æŠ“å–æŠ–éŸ³/å…¨ç½‘çƒ­æ¦œ
-- ç”¨ AI æ”¹å†™æˆè´´åˆèµ›é“çš„é€‰é¢˜çµæ„Ÿ(10æ¡) + äºŒåˆ›è§’åº¦(10æ¡)
-- æ¨é€åˆ° GitHub Gist
+Ã¿ÈÕ²É¼¯ÓëÉú³É½Å±¾£¨¼Ò¾Ó²©Ö÷ÈüµÀ£©
+- ×¥È¡¶¶Òô/È«ÍøÈÈ°ñ
+- ÓÃ AI ¸ÄĞ´³ÉÌùºÏÈüµÀµÄÑ¡ÌâÁé¸Ğ(10Ìõ) + ¶ş´´½Ç¶È(10Ìõ)
+- ÍÆËÍµ½ GitHub Gist + ²Ö¿â daily.json£¨Í¬Óò·ÃÎÊ²»±»Ç½£©
 """
 import os
 import json
+import base64
 import datetime
 import requests
 
 GH_TOKEN = os.environ.get('GH_TOKEN', '')
 GIST_ID = os.environ.get('GIST_ID', 'ae7b610eadb34a38e0cd76a28bb3360f')
 AI_API_KEY = os.environ.get('AI_API_KEY', '')
-TRACK_KEYWORDS = os.environ.get('TRACK_KEYWORDS', 'å®¶å±…,å®¶å±…å¥½ç‰©,å®¶å±…æ”¹é€ ,æ”¶çº³,è½¯è£…,å®¶å±…åšä¸»')
+TRACK_KEYWORDS = os.environ.get('TRACK_KEYWORDS', '¼Ò¾Ó,¼Ò¾ÓºÃÎï,¼Ò¾Ó¸ÄÔì,ÊÕÄÉ,Èí×°,¼Ò¾Ó²©Ö÷')
+REPO = 'z19769/creator-workbench'
 
 TODAY = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime('%Y-%m-%d')
 
 
 def collect_hot():
-    """æŠ“å–å…¨ç½‘çƒ­æ¦œï¼ˆå¤šæºèšåˆï¼Œå¤±è´¥åˆ™ç”¨å ä½ï¼‰"""
+    """×¥È¡È«ÍøÈÈ°ñ£¨¶àÔ´¾ÛºÏ£¬Ê§°ÜÔòÓÃÕ¼Î»£©"""
     items = []
-    # æº1: å¾®åšçƒ­æœ (å…¬å¼€APIï¼Œä¸ç¨³å®šï¼Œåšå®¹é”™)
-    try:
-        r = requests.get('https://tenapi.cn/v2/weibohot', timeout=8)
-        if r.ok:
-            data = r.json()
-            for it in (data.get('data') or [])[:20]:
-                items.append({'title': it.get('name', ''), 'hot': it.get('hot', '')})
-    except Exception:
-        pass
-    # æº2: æŠ–éŸ³çƒ­æœ
-    try:
-        r = requests.get('https://tenapi.cn/v2/douyinhot', timeout=8)
-        if r.ok:
-            data = r.json()
-            for it in (data.get('data') or [])[:20]:
-                items.append({'title': it.get('name', ''), 'hot': it.get('hot', '')})
-    except Exception:
-        pass
-    # å»é‡
+    sources = [
+        ('https://tenapi.cn/v2/weibohot', 'name', 'hot'),
+        ('https://tenapi.cn/v2/douyinhot', 'name', 'hot'),
+    ]
+    for url, name_key, hot_key in sources:
+        try:
+            r = requests.get(url, timeout=8)
+            if r.ok:
+                data = r.json()
+                for it in (data.get('data') or [])[:20]:
+                    items.append({'title': it.get(name_key, ''), 'hot': str(it.get(hot_key, ''))})
+        except Exception:
+            pass
+    # È¥ÖØ
     seen = set()
     uniq = []
     for it in items:
@@ -51,21 +48,19 @@ def collect_hot():
 
 
 def ai_rewrite(hot_items, keywords):
-    """ç”¨ AI æŠŠçƒ­ç‚¹æ”¹å†™æˆé€‰é¢˜çµæ„Ÿ + äºŒåˆ›è§’åº¦ã€‚
-    è‹¥æ—  AI_API_KEYï¼Œåˆ™ç”¨è§„åˆ™æ¨¡æ¿ç”Ÿæˆå ä½å†…å®¹ã€‚"""
+    """ÓÃ AI °ÑÈÈµã¸ÄĞ´³ÉÑ¡ÌâÁé¸Ğ + ¶ş´´½Ç¶È¡£ÎŞ AI_API_KEY Ê±ÓÃ¹æÔòÄ£°å¡£"""
     inspire = []
     viral = []
 
     if AI_API_KEY:
-        # è°ƒç”¨ AI APIï¼ˆå…¼å®¹ OpenAI æ ¼å¼ï¼‰
         try:
             prompt = (
-                f"æˆ‘æ˜¯åšã€Œ{keywords}ã€èµ›é“çš„çŸ­è§†é¢‘åˆ›ä½œè€…ï¼ˆå®¶å±…åšä¸»ï¼‰ã€‚"
-                f"ä»¥ä¸‹æ˜¯ä»Šæ—¥çƒ­ç‚¹ï¼š{json.dumps([i['title'] for i in hot_items[:10]], ensure_ascii=False)}\n"
-                "è¯·åŸºäºè¿™äº›çƒ­ç‚¹ï¼Œç»“åˆå®¶å±…åšä¸»èµ›é“ï¼Œç”Ÿæˆï¼š\n"
-                "1. 10æ¡é€‰é¢˜çµæ„Ÿï¼ˆtitle+tag+descï¼Œå›´ç»•å®¶å±…/æ”¶çº³/è½¯è£…/æ”¹é€ /å¥½ç‰©åˆ†äº«ï¼‰\n"
-                "2. 10æ¡äºŒåˆ›è§’åº¦ï¼ˆtitle+angleï¼Œå¯è·Ÿæ‹å¯æ”¹ç¼–çš„çƒ­ç‚¹ï¼‰\n"
-                "ç”¨ JSON è¿”å›ï¼Œæ ¼å¼ï¼š{\"inspire\":[{\"title\",\"tag\",\"desc\"}],\"viral\":[{\"title\",\"angle\",\"hot\"}]}"
+                f"ÎÒÊÇ×ö¡¸{keywords}¡¹ÈüµÀµÄ¶ÌÊÓÆµ´´×÷Õß£¨¼Ò¾Ó²©Ö÷£©¡£"
+                f"ÒÔÏÂÊÇ½ñÈÕÈÈµã£º{json.dumps([i['title'] for i in hot_items[:10]], ensure_ascii=False)}\n"
+                "Çë»ùÓÚÕâĞ©ÈÈµã£¬½áºÏ¼Ò¾Ó²©Ö÷ÈüµÀ£¬Éú³É£º\n"
+                "1. 10ÌõÑ¡ÌâÁé¸Ğ£¨title+tag+desc£¬Î§ÈÆ¼Ò¾Ó/ÊÕÄÉ/Èí×°/¸ÄÔì/ºÃÎï·ÖÏí£©\n"
+                "2. 10Ìõ¶ş´´½Ç¶È£¨title+angle£¬¿É¸úÅÄ¿É¸Ä±àµÄÈÈµã£©\n"
+                "ÓÃ JSON ·µ»Ø£¬¸ñÊ½£º{\"inspire\":[{\"title\",\"tag\",\"desc\"}],\"viral\":[{\"title\",\"angle\",\"hot\"}]}"
             )
             r = requests.post(
                 'https://api.openai.com/v1/chat/completions',
@@ -75,7 +70,6 @@ def ai_rewrite(hot_items, keywords):
             )
             if r.ok:
                 content = r.json()['choices'][0]['message']['content']
-                # æå– JSON
                 start = content.find('{')
                 end = content.rfind('}') + 1
                 if start >= 0 and end > start:
@@ -83,67 +77,87 @@ def ai_rewrite(hot_items, keywords):
                     inspire = parsed.get('inspire', [])[:10]
                     viral = parsed.get('viral', [])[:10]
         except Exception as e:
-            print('AI è°ƒç”¨å¤±è´¥:', e)
+            print('AI µ÷ÓÃÊ§°Ü:', e)
 
-    # å…œåº•ï¼šè§„åˆ™æ¨¡æ¿ç”Ÿæˆ
+    # ¶µµ×£º¹æÔòÄ£°åÉú³É
     if not inspire:
         kws = [k.strip() for k in keywords.split(',') if k.strip()]
-        for i, h in enumerate(hot_items[:10] if hot_items else [{'title': 'ä»Šæ—¥çƒ­ç‚¹'}]):
-            kw = kws[i % len(kws)] if kws else 'æˆé•¿'
-            title = h.get('title', f'ä»Šæ—¥çƒ­ç‚¹{i+1}')
+        for i, h in enumerate(hot_items[:10] if hot_items else [{'title': '½ñÈÕÈÈµã'}]):
+            kw = kws[i % len(kws)] if kws else '¼Ò¾Ó'
+            title = h.get('title', f'½ñÈÕÈÈµã{i+1}')
             inspire.append({
-                'title': f'{kw}è§†è§’ï¼š{title}',
-                'tag': 'é€‰é¢˜',
-                'desc': f'ä»{kw}è§’åº¦è§£è¯»ã€Œ{title}ã€ï¼Œç»“åˆä¸ªäººç»å†è¾“å‡ºè§‚ç‚¹ã€‚'
+                'title': f'{kw}ÊÓ½Ç£º{title}',
+                'tag': 'Ñ¡Ìâ',
+                'desc': f'´Ó{kw}½Ç¶È½â¶Á¡¸{title}¡¹£¬½áºÏ¸öÈË¾­ÀúÊä³ö¹Ûµã¡£'
             })
     if not viral:
-        for i, h in enumerate(hot_items[:10] if hot_items else [{'title': 'ä»Šæ—¥çƒ­ç‚¹'}]):
-            title = h.get('title', f'ä»Šæ—¥çƒ­ç‚¹{i+1}')
+        for i, h in enumerate(hot_items[:10] if hot_items else [{'title': '½ñÈÕÈÈµã'}]):
+            title = h.get('title', f'½ñÈÕÈÈµã{i+1}')
             viral.append({
                 'title': title,
-                'tag': 'çƒ­ç‚¹',
-                'hot': h.get('hot', 'çƒ­åº¦ä¸Šå‡'),
-                'angle': f'æ™®é€šäººè§†è§’å¤åˆ»ï¼ŒåŠ å…¥åå·®ä¸ä¸ªäººè§‚ç‚¹ã€‚'
+                'tag': 'ÈÈµã',
+                'hot': h.get('hot', 'ÈÈ¶ÈÉÏÉı'),
+                'angle': 'ÆÕÍ¨ÈËÊÓ½Ç¸´¿Ì£¬¼ÓÈë·´²îÓë¸öÈË¹Ûµã¡£'
             })
 
     return inspire[:10], viral[:10]
 
 
-def push_gist(inspire, viral):
-    """æ¨é€åˆ° Gist"""
+def make_payload(inspire, viral):
+    return json.dumps({'date': TODAY, 'inspire': inspire, 'viral': viral}, ensure_ascii=False, indent=2)
+
+
+def push_gist(content):
+    """ÍÆËÍµ½ Gist"""
+    if not GH_TOKEN:
+        print('Î´ÅäÖÃ GH_TOKEN£¬Ìø¹ı Gist')
+        return False
     payload = {
-        'description': 'åˆ›ä½œå·¥ä½œå°æ¯æ—¥æ•°æ®',
-        'files': {
-            'daily.json': {
-                'content': json.dumps({
-                    'date': TODAY,
-                    'inspire': inspire,
-                    'viral': viral
-                }, ensure_ascii=False, indent=2)
-            }
-        }
+        'description': '´´×÷¹¤×÷Ì¨Ã¿ÈÕÊı¾İ',
+        'files': {'daily.json': {'content': content}}
     }
     r = requests.patch(
         f'https://api.github.com/gists/{GIST_ID}',
         headers={'Authorization': f'token {GH_TOKEN}', 'Accept': 'application/vnd.github+json'},
         json=payload, timeout=15
     )
-    print('Gist æ›´æ–°:', r.status_code)
+    print('Gist ¸üĞÂ:', r.status_code)
+    return r.ok
+
+
+def push_repo_json(content):
+    """¸üĞÂ²Ö¿âÀïµÄ daily.json£¨Í¬Óò·ÃÎÊ£¬ÊÖ»ú²»±»Ç½£©"""
+    if not GH_TOKEN:
+        print('Î´ÅäÖÃ GH_TOKEN£¬Ìø¹ı²Ö¿â¸üĞÂ')
+        return False
+    headers = {'Authorization': f'token {GH_TOKEN}', 'Accept': 'application/vnd.github+json'}
+    # »ñÈ¡ÏÖÓĞÎÄ¼ş sha£¨Èô´æÔÚ£©
+    sha = None
+    try:
+        r = requests.get(f'https://api.github.com/repos/{REPO}/contents/daily.json', headers=headers, timeout=10)
+        if r.ok:
+            sha = r.json().get('sha')
+    except Exception:
+        pass
+    body = {'message': f'chore: ¸üĞÂÃ¿ÈÕÊı¾İ {TODAY}', 'content': base64.b64encode(content.encode()).decode(), 'branch': 'main'}
+    if sha:
+        body['sha'] = sha
+    r = requests.put(f'https://api.github.com/repos/{REPO}/contents/daily.json', headers=headers, json=body, timeout=15)
+    print('²Ö¿â daily.json ¸üĞÂ:', r.status_code)
     return r.ok
 
 
 def main():
-    print(f'=== {TODAY} é‡‡é›†ä»»åŠ¡å¼€å§‹ ===')
-    print('èµ›é“å…³é”®è¯:', TRACK_KEYWORDS)
+    print(f'=== {TODAY} ²É¼¯ÈÎÎñ¿ªÊ¼ ===')
+    print('ÈüµÀ¹Ø¼ü´Ê:', TRACK_KEYWORDS)
     hot = collect_hot()
-    print(f'é‡‡é›†åˆ°çƒ­ç‚¹ {len(hot)} æ¡')
+    print(f'²É¼¯µ½ÈÈµã {len(hot)} Ìõ')
     inspire, viral = ai_rewrite(hot, TRACK_KEYWORDS)
-    print(f'ç”Ÿæˆçµæ„Ÿ {len(inspire)} æ¡, äºŒåˆ› {len(viral)} æ¡')
-    if GH_TOKEN:
-        ok = push_gist(inspire, viral)
-        print('æ¨é€ Gist:', 'æˆåŠŸ' if ok else 'å¤±è´¥')
-    else:
-        print('æœªé…ç½® GH_TOKENï¼Œè·³è¿‡æ¨é€')
+    print(f'Éú³ÉÁé¸Ğ {len(inspire)} Ìõ, ¶ş´´ {len(viral)} Ìõ')
+    content = make_payload(inspire, viral)
+    push_gist(content)
+    push_repo_json(content)
+    print('=== ²É¼¯ÈÎÎñÍê³É ===')
 
 
 if __name__ == '__main__':
