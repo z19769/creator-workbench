@@ -82,7 +82,8 @@ def ai_rewrite(hot_items, keywords):
     # 兜底：规则模板生成
     if not inspire:
         kws = [k.strip() for k in keywords.split(',') if k.strip()]
-        for i, h in enumerate(hot_items[:10] if hot_items else [{'title': '今日热点'}]):
+        pool = hot_items[:10] if hot_items else [{'title': f'家居热点{i+1}'} for i in range(10)]
+        for i, h in enumerate(pool):
             kw = kws[i % len(kws)] if kws else '家居'
             title = h.get('title', f'今日热点{i+1}')
             inspire.append({
@@ -91,7 +92,8 @@ def ai_rewrite(hot_items, keywords):
                 'desc': f'从{kw}角度解读「{title}」，结合个人经历输出观点。'
             })
     if not viral:
-        for i, h in enumerate(hot_items[:10] if hot_items else [{'title': '今日热点'}]):
+        pool = hot_items[:10] if hot_items else [{'title': f'家居热点{i+1}'} for i in range(10)]
+        for i, h in enumerate(pool):
             title = h.get('title', f'今日热点{i+1}')
             viral.append({
                 'title': title,
