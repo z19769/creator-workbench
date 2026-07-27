@@ -487,27 +487,13 @@ function drawViral(list){
 
 /* jump:唤起App，失败回退网页搜索 */
 function jumpSearch(q,plat){
-  q=decodeURIComponent(q);
+  // q 已经是 encodeURIComponent 过的，解码回中文
+  try{q=decodeURIComponent(q)}catch(e){}
   if(plat==='douyin'){
-    // 抖音网页版国内会被重定向，优先唤起App
-    // 用 iframe 尝试唤起，失败则复制关键词
-    try{
-      const s=document.createElement('iframe');
-      s.style.display='none';
-      s.src='snssdk1129://search?keyword='+encodeURIComponent(q);
-      document.body.appendChild(s);
-      setTimeout(()=>{
-        document.body.removeChild(s);
-        copyText(q);
-        toast('已复制标题，请打开抖音App搜索粘贴');
-      },800);
-    }catch(e){
-      copyText(q);
-      toast('已复制标题，请打开抖音App搜索');
-    }
+    // 直接打开抖音搜索网页版（比 scheme 唤起稳定）
+    window.open('https://so.douyin.com/s?keyword='+encodeURIComponent(q),'_blank');
   }else if(plat==='bili'){
-    // B站网页版国内可正常访问
-    window.open(`https://search.bilibili.com/all?keyword=${encodeURIComponent(q)}`,'_blank');
+    window.open('https://search.bilibili.com/all?keyword='+encodeURIComponent(q),'_blank');
   }else{
     copyText(q);
     toast('已复制：'+q);
