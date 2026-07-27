@@ -1,0 +1,37 @@
+name: 每日采集与生成
+
+on:
+  schedule:
+    # 北京时间 8:00 / 14:00 / 20:00 (UTC 0/6/12)
+    - cron: '0 0 * * *'
+    - cron: '0 6 * * *'
+    - cron: '0 12 * * *'
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 安装依赖
+        run: pip install requests
+
+      - name: 运行采集与生成
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+          GIST_ID: ae7b610eadb34a38e0cd76a28bb3360f
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          TRACK_KEYWORDS: ${{ secrets.TRACK_KEYWORDS }}
+        run: python scripts/collect.py
+
+      - name: 完成
+        run: echo "采集完成 $(date)"
