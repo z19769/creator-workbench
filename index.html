@@ -427,11 +427,11 @@ function drawInspire(list){
       </div>
       ${it.desc?`<div class="card-desc">${esc(it.desc)}</div>`:''}
       <div class="card-actions">
-        <button class="btn-mini olive" data-search="${encodeURIComponent(it.title)}">${I.douyin}抖音找</button>
-        <button class="btn-mini" data-search="${encodeURIComponent(it.title)}">${I.bilibili}B站找</button>
+        <button class="btn-mini olive" data-search="${encodeURIComponent(it.title)}" data-plat="douyin">${I.douyin}抖音找</button>
+        <button class="btn-mini" data-search="${encodeURIComponent(it.title)}" data-plat="bili">${I.bilibili}B站找</button>
       </div>
     </div>`).join('');
-  box.querySelectorAll('.btn-mini').forEach(b=>b.onclick=()=>jumpSearch(b.dataset.search,b.classList.contains('olive')?'douyin':'bili'));
+  box.querySelectorAll('.btn-mini').forEach(b=>b.onclick=()=>jumpSearch(b.dataset.search,b.dataset.plat));
 }
 
 /* ============ Viral ============ */
@@ -461,26 +461,29 @@ function drawViral(list){
       ${it.hot?`<div class="card-desc">🔥 ${esc(it.hot)}</div>`:''}
       ${it.angle?`<div class="card-desc"><b>二创角度：</b>${esc(it.angle)}</div>`:''}
       <div class="card-actions">
-        <button class="btn-mini olive" data-search="${encodeURIComponent(it.title)}">${I.douyin}抖音看</button>
-        <button class="btn-mini" data-search="${encodeURIComponent(it.title)}">${I.bilibili}B站看</button>
+        <button class="btn-mini olive" data-search="${encodeURIComponent(it.title)}" data-plat="douyin">${I.douyin}抖音看</button>
+        <button class="btn-mini" data-search="${encodeURIComponent(it.title)}" data-plat="bili">${I.bilibili}B站看</button>
       </div>
     </div>`).join('');
-  box.querySelectorAll('.btn-mini').forEach(b=>b.onclick=()=>jumpSearch(b.dataset.search,b.classList.contains('olive')?'douyin':'bili'));
+  box.querySelectorAll('.btn-mini').forEach(b=>b.onclick=()=>jumpSearch(b.dataset.search,b.dataset.plat));
 }
 
 /* jump:唤起App，失败回退网页搜索 */
 function jumpSearch(q,plat){
+  // 直接打开网页搜索，Safari/微信内置浏览器都兼容
+  const url=plat==='douyin'
+    ?`https://www.douyin.com/search/${encodeURIComponent(q)}`
+    :`https://search.bilibili.com/all?keyword=${encodeURIComponent(q)}`;
+  window.open(url,'_blank');
+}
+function tryOpenApp(q,plat){
+  // 尝试唤起App，失败回退网页（用户主动点"打开App"时用）
   const web=plat==='douyin'
-    ?`https://www.douyin.com/search/${q}`
-    :`https://search.bilibili.com/all?keyword=${q}`;
-  if(plat==='douyin'){
-    // snssdk1129 抖音 scheme
-    location.href='snssdk1129://search?keyword='+q;
-    setTimeout(()=>{location.href=web},400);
-  }else{
-    location.href='bilibili://search?keyword='+q;
-    setTimeout(()=>{location.href=web},400);
-  }
+    ?`https://www.douyin.com/search/${encodeURIComponent(q)}`
+    :`https://search.bilibili.com/all?keyword=${encodeURIComponent(q)}`;
+  const scheme=plat==='douyin' ? `snssdk1129://search?keyword=${encodeURIComponent(q)}` : `bilibili://search?keyword=${encodeURIComponent(q)}`;
+  location.href=scheme;
+  setTimeout(()=>{window.open(web,'_blank')},500);
 }
 
 /* ============ Review ============ */
