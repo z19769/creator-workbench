@@ -209,6 +209,7 @@ ul{list-style:none}
       <button class="nav-item active" data-page="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>每日计划</button>
       <button class="nav-item" data-page="inspire"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a2 2 0 0 1-2 2H10a2 2 0 0 1-2-2v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/><line x1="9" y1="21" x2="15" y2="21"/></svg>选题每日灵感</button>
       <button class="nav-item" data-page="viral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>爆款热点二创</button>
+      <button class="nav-item" data-page="teardown"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>爆款视频拆解</button>
       <button class="nav-item" data-page="review"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>内容复盘</button>
       <button class="nav-item" data-page="memo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>备忘录</button>
     </nav>
@@ -244,6 +245,14 @@ ul{list-style:none}
       <div class="page-title">爆款热点视频二创</div>
       <div class="page-sub">每日热点 + 改编角度</div>
       <div id="viralList"></div>
+    </section>
+
+    <!-- 爆款视频拆解 -->
+    <section class="page" id="page-teardown">
+      <div class="page-title">爆款视频拆解</div>
+      <div class="page-sub">拆解爆款结构 · 沉淀可复用模板</div>
+      <div id="teardownList"></div>
+      <button class="add-btn" id="teardownAdd"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>添加拆解</button>
     </section>
 
     <!-- 4. 内容复盘 -->
@@ -307,6 +316,7 @@ function def(){return{
     {id:uid('t'),text:'回复评论互动',done:false}
   ],
   review:[],
+  teardown:[],
   memo:[
     {id:uid('m'),text:'',done:false},
     {id:uid('m'),text:'',done:false},
@@ -343,10 +353,10 @@ function switchPage(p){
   curPage=p;
   document.querySelectorAll('.nav-item').forEach(x=>x.classList.toggle('active',x.dataset.page===p));
   document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id==='page-'+p));
-  const titles={plan:'每日计划',inspire:'选题灵感',viral:'爆款二创',review:'内容复盘',memo:'备忘录'};
+  const titles={plan:'每日计划',inspire:'选题灵感',viral:'爆款二创',teardown:'爆款拆解',review:'内容复盘',memo:'备忘录'};
   document.getElementById('topTitle').textContent=titles[p];
   const fab=document.getElementById('fab');
-  fab.style.display=(p==='plan'||p==='review'||p==='memo')?'flex':'none';
+  fab.style.display=(p==='plan'||p==='review'||p==='memo'||p==='teardown')?'flex':'none';
   drawer.classList.remove('open');mask.classList.remove('open');
   render(p);
 }
@@ -374,6 +384,7 @@ document.getElementById('planAdd').onclick=()=>openModal('plan');
 document.getElementById('fab').onclick=()=>{
   if(curPage==='plan')openModal('plan');
   else if(curPage==='review')openModal('review');
+  else if(curPage==='teardown')openModal('teardown');
   else if(curPage==='memo')addMemoLine();
 };
 
@@ -486,6 +497,25 @@ function tryOpenApp(q,plat){
   setTimeout(()=>{window.open(web,'_blank')},500);
 }
 
+/* ============ Teardown (爆款拆解) ============ */
+function renderTeardown(){
+  const box=document.getElementById('teardownList');
+  const items=state.teardown||[];
+  if(!items.length){box.innerHTML='<div class="empty">还没有拆解记录</div>';return}
+  box.innerHTML=items.map(t=>`
+    <div class="card">
+      <button class="card-del show" data-del="${t.id}">${I.trash}</button>
+      <div class="card-title">${esc(t.title)}</div>
+      <div class="ci-meta">${esc(t.date)}</div>
+      ${t.hook?`<div class="card-desc"><b>🎯 开头钩子：</b>${esc(t.hook)}</div>`:''}
+      ${t.structure?`<div class="card-desc"><b>📐 结构：</b>${esc(t.structure)}</div>`:''}
+      ${t.highlights?`<div class="card-desc"><b>✨ 亮点：</b>${esc(t.highlights)}</div>`:''}
+      ${t.reuse?`<div class="card-desc"><b>🔄 可复用：</b>${esc(t.reuse)}</div>`:''}
+    </div>`).join('');
+  box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{state.teardown=state.teardown.filter(x=>x.id!==b.dataset.del);save();renderTeardown()});
+}
+document.getElementById('teardownAdd').onclick=()=>openModal('teardown');
+
 /* ============ Review ============ */
 function renderReview(){
   const box=document.getElementById('reviewList');
@@ -535,6 +565,7 @@ function render(p){
   if(p==='plan')renderPlan();
   else if(p==='inspire')renderInspire(false);
   else if(p==='viral')renderViral(false);
+  else if(p==='teardown')renderTeardown();
   else if(p==='review')renderReview();
   else if(p==='memo')renderMemo();
 }
@@ -569,6 +600,14 @@ function openModal(mode){
       <div class="fg"><label>✨ 亮点</label><textarea id="m_highlight" placeholder="做得好的地方"></textarea></div>
       <div class="fg"><label>⚠️ 问题</label><textarea id="m_problem" placeholder="不足之处"></textarea></div>
       <div class="fg"><label>🚀 优化</label><textarea id="m_optimize" placeholder="下次怎么改"></textarea></div>`;
+  }else if(mode==='teardown'){
+    title.textContent='新增爆款拆解';
+    body.innerHTML=`
+      <div class="fg"><label>视频标题</label><input id="m_title" placeholder="如：沉浸式回家vlog"></div>
+      <div class="fg"><label>🎯 开头钩子（前3秒）</label><textarea id="m_hook" placeholder="前3秒用什么抓住了注意力"></textarea></div>
+      <div class="fg"><label>📐 视频结构</label><textarea id="m_structure" placeholder="如：钩子→痛点→方案→对比→CTA"></textarea></div>
+      <div class="fg"><label>✨ 亮点</label><textarea id="m_highlights" placeholder="值得学习的地方"></textarea></div>
+      <div class="fg"><label>🔄 可复用模板</label><textarea id="m_reuse" placeholder="能套用到自己赛道的点"></textarea></div>`;
   }
   modalMask.classList.add('open');
   setTimeout(()=>{const f=modalBox.querySelector('input,textarea');if(f)f.focus()},100);
@@ -595,6 +634,17 @@ document.getElementById('modalOk').onclick=()=>{
       optimize:document.getElementById('m_optimize').value.trim()
     });
     save();renderReview();closeModal();toast('已保存复盘');
+  }else if(modalMode==='teardown'){
+    const title=document.getElementById('m_title').value.trim();
+    if(!title){toast('请输入标题');return}
+    state.teardown.unshift({
+      id:uid('td'),title,date:today(),
+      hook:document.getElementById('m_hook').value.trim(),
+      structure:document.getElementById('m_structure').value.trim(),
+      highlights:document.getElementById('m_highlights').value.trim(),
+      reuse:document.getElementById('m_reuse').value.trim()
+    });
+    save();renderTeardown();closeModal();toast('已保存拆解');
   }
 };
 
