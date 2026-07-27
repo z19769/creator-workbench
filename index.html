@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#556B2F">
-<title>创作工作台</title>
+<title>张子叶的工作台</title>
 <style>
 :root{
   --olive:#556B2F; --olive-d:#3F5223; --olive-l:#6B8E3C;
@@ -201,8 +201,8 @@ ul{list-style:none}
   <div class="drawer-mask" id="drawerMask"></div>
   <aside class="drawer" id="drawer">
     <div class="drawer-head">
-      <div class="avatar">创</div>
-      <h2>创作工作台</h2>
+      <div class="avatar">张</div>
+      <h2>张子叶的工作台</h2>
       <p>每日灵感 · 热点二创 · 复盘成长</p>
     </div>
     <nav class="drawer-nav" id="drawerNav">
@@ -444,9 +444,11 @@ function drawInspire(list){
       <div class="card-actions">
         <button class="btn-mini olive" data-search="${encodeURIComponent(it.title)}" data-plat="douyin">${I.douyin}抖音找</button>
         <button class="btn-mini" data-search="${encodeURIComponent(it.title)}" data-plat="bili">${I.bilibili}B站找</button>
+        <button class="btn-mini" data-copy="${encodeURIComponent(it.title)}">📋复制</button>
       </div>
     </div>`).join('');
-  box.querySelectorAll('.btn-mini').forEach(b=>b.onclick=()=>jumpSearch(b.dataset.search,b.dataset.plat));
+  box.querySelectorAll('[data-plat]').forEach(b=>b.onclick=()=>jumpSearch(b.dataset.search,b.dataset.plat));
+  box.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{copyText(decodeURIComponent(b.dataset.copy));toast('已复制标题')});
 }
 
 /* ============ Viral ============ */
@@ -485,20 +487,40 @@ function drawViral(list){
 
 /* jump:唤起App，失败回退网页搜索 */
 function jumpSearch(q,plat){
-  // 直接打开网页搜索，Safari/微信内置浏览器都兼容
-  const url=plat==='douyin'
-    ?`https://www.douyin.com/search/${encodeURIComponent(q)}`
-    :`https://search.bilibili.com/all?keyword=${encodeURIComponent(q)}`;
-  window.open(url,'_blank');
+  q=decodeURIComponent(q);
+  if(plat==='douyin'){
+    // 抖音网页版国内会被重定向，优先唤起App
+    // 用 iframe 尝试唤起，失败则复制关键词
+    try{
+      const s=document.createElement('iframe');
+      s.style.display='none';
+      s.src='snssdk1129://search?keyword='+encodeURIComponent(q);
+      document.body.appendChild(s);
+      setTimeout(()=>{
+        document.body.removeChild(s);
+        copyText(q);
+        toast('已复制标题，请打开抖音App搜索粘贴');
+      },800);
+    }catch(e){
+      copyText(q);
+      toast('已复制标题，请打开抖音App搜索');
+    }
+  }else if(plat==='bili'){
+    // B站网页版国内可正常访问
+    window.open(`https://search.bilibili.com/all?keyword=${encodeURIComponent(q)}`,'_blank');
+  }else{
+    copyText(q);
+    toast('已复制：'+q);
+  }
 }
-function tryOpenApp(q,plat){
-  // 尝试唤起App，失败回退网页（用户主动点"打开App"时用）
-  const web=plat==='douyin'
-    ?`https://www.douyin.com/search/${encodeURIComponent(q)}`
-    :`https://search.bilibili.com/all?keyword=${encodeURIComponent(q)}`;
-  const scheme=plat==='douyin' ? `snssdk1129://search?keyword=${encodeURIComponent(q)}` : `bilibili://search?keyword=${encodeURIComponent(q)}`;
-  location.href=scheme;
-  setTimeout(()=>{window.open(web,'_blank')},500);
+function copyText(t){
+  // 兼容iOS Safari的复制
+  const ta=document.createElement('textarea');
+  ta.value=t;ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);
+  ta.select();
+  try{document.execCommand('copy')}catch(e){}
+  document.body.removeChild(ta);
 }
 
 /* ============ Teardown (爆款拆解) ============ */
