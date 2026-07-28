@@ -105,8 +105,50 @@ def ai_rewrite(hot_items, keywords):
     return inspire[:10], viral[:10]
 
 
-def make_payload(inspire, viral):
-    return json.dumps({'date': TODAY, 'inspire': inspire, 'viral': viral}, ensure_ascii=False, indent=2)
+def gen_teardown(keywords):
+    """生成家居赛道爆款拆解案例（规则模板，AI可用时会被替换）"""
+    pool = [
+        {
+            'title': '沉浸式回家vlog（家居版）',
+            'hook': '开门瞬间暖光亮起，ASMR钥匙声+踢鞋动作，3秒建立治愈氛围',
+            'structure': '钩子(开门)→空间展示(玄关→客厅→卧室)→好物植入→情绪收尾',
+            'highlights': '第一人称视角+柔光滤镜，把普通回家拍成电影感；每个空间自然带出1个家居好物',
+            'reuse': '"回家仪式感"模板：开门动作+空间展示+好物植入，适合所有家居视频'
+        },
+        {
+            'title': '500元爆改出租屋卧室',
+            'hook': '改造前画面昏暗杂乱，字幕"房东看到要涨租"制造反差期待',
+            'structure': '改造前痛点→购物清单→改造过程→前后对比→经验总结',
+            'highlights': '前后对比强烈；预算数字清晰；好物清单具体可抄',
+            'reuse': '"低成本改造"模板：痛点+预算+清单+过程+对比，适合卧室/厨房/客厅改造'
+        },
+        {
+            'title': '小户型收纳神器TOP10',
+            'hook': '"住了5年，东西越买越多，却越住越大"直击收纳痛点',
+            'structure': '痛点引入→10件神器逐一展示→使用前后对比→收纳心法总结',
+            'highlights': '每款都展示使用场景和效果；节奏快、信息密度高；结尾有方法论升华',
+            'reuse': '"TOP10好物"模板：痛点+编号清单+场景展示+对比+总结，可复制到软装/清洁/厨房好物'
+        },
+        {
+            'title': '独居女生安全感好物分享',
+            'hook': '"一个人住，这些东西救了我的命"制造情感共鸣+安全感话题',
+            'structure': '情感引入→痛点场景→好物逐一展示→使用前后对比→暖心收尾',
+            'highlights': '场景化叙事强；好物植入自然；情绪价值高，易引发收藏转发',
+            'reuse': '"独居好物"模板：情感+场景+好物+对比+收尾，适合安全感/幸福感/仪式感主题'
+        },
+        {
+            'title': '租房改造前后对比',
+            'hook': '改造前昏暗杂乱画面+"房东不让动"制造限制感，引发好奇',
+            'structure': '改造前痛点→限制说明→无损改造方案→前后对比→搬走能带走的好物清单',
+            'highlights': '前后反差强烈；强调不破坏原装；清单实用可抄',
+            'reuse': '"无损改造"模板：痛点+限制+方案+对比+清单，适合所有租房改造内容'
+        }
+    ]
+    return pool
+
+
+def make_payload(inspire, viral, teardown):
+    return json.dumps({'date': TODAY, 'inspire': inspire, 'viral': viral, 'teardown': teardown}, ensure_ascii=False, indent=2)
 
 
 def push_gist(content):
@@ -155,8 +197,9 @@ def main():
     hot = collect_hot()
     print(f'采集到热点 {len(hot)} 条')
     inspire, viral = ai_rewrite(hot, TRACK_KEYWORDS)
-    print(f'生成灵感 {len(inspire)} 条, 二创 {len(viral)} 条')
-    content = make_payload(inspire, viral)
+    teardown = gen_teardown(TRACK_KEYWORDS)
+    print(f'生成灵感 {len(inspire)} 条, 二创 {len(viral)} 条, 拆解 {len(teardown)} 条')
+    content = make_payload(inspire, viral, teardown)
     push_gist(content)
     push_repo_json(content)
     print('=== 采集任务完成 ===')
