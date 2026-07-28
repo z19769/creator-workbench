@@ -1,209 +1,93 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Ã¿ÈÕ²É¼¯ÓëÉú³É½Å±¾£¨¼Ò¾Ó²©Ö÷ÈüµÀ£©
-- ×¥È¡¶¶Òô/È«ÍøÈÈ°ñ
-- ÓÃ AI ¸ÄĞ´³ÉÌùºÏÈüµÀµÄÑ¡ÌâÁé¸Ğ(10Ìõ) + ¶ş´´½Ç¶È(10Ìõ)
-- ÍÆËÍµ½ GitHub Gist + ²Ö¿â daily.json£¨Í¬Óò·ÃÎÊ²»±»Ç½£©
-"""
-import os
-import json
-import base64
-import datetime
-import requests
+import os, json, base64, datetime, requests
 
-GH_TOKEN = os.environ.get('GH_TOKEN', '')
-GIST_ID = os.environ.get('GIST_ID', 'ae7b610eadb34a38e0cd76a28bb3360f')
-AI_API_KEY = os.environ.get('AI_API_KEY', '')
-TRACK_KEYWORDS = os.environ.get('TRACK_KEYWORDS', '¼Ò¾Ó,¼Ò¾ÓºÃÎï,¼Ò¾Ó¸ÄÔì,ÊÕÄÉ,Èí×°,¼Ò¾Ó²©Ö÷')
-REPO = 'z19769/creator-workbench'
-
-TODAY = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime('%Y-%m-%d')
-
+GH_TOKEN = os.environ.get("GH_TOKEN", "")
+GIST_ID = os.environ.get("GIST_ID", "ae7b610eadb34a38e0cd76a28bb3360f")
+AI_API_KEY = os.environ.get("AI_API_KEY", "")
+TRACK_KEYWORDS = os.environ.get("TRACK_KEYWORDS", "å®¶å±…,å®¶å±…å¥½ç‰©,å®¶å±…æ”¹é€ ,æ”¶çº³,è½¯è£…,å®¶å±…åšä¸»")
+REPO = "z19769/creator-workbench"
+TODAY = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).strftime("%Y-%m-%d")
 
 def collect_hot():
-    """×¥È¡È«ÍøÈÈ°ñ£¨¶àÔ´¾ÛºÏ£¬Ê§°ÜÔòÓÃÕ¼Î»£©"""
     items = []
-    sources = [
-        ('https://tenapi.cn/v2/weibohot', 'name', 'hot'),
-        ('https://tenapi.cn/v2/douyinhot', 'name', 'hot'),
-    ]
-    for url, name_key, hot_key in sources:
+    sources = [("https://tenapi.cn/v2/weibohot","name","hot"),("https://tenapi.cn/v2/douyinhot","name","hot")]
+    for url,nk,hk in sources:
         try:
-            r = requests.get(url, timeout=8)
+            r=requests.get(url,timeout=8)
             if r.ok:
-                data = r.json()
-                for it in (data.get('data') or [])[:20]:
-                    items.append({'title': it.get(name_key, ''), 'hot': str(it.get(hot_key, ''))})
-        except Exception:
-            pass
-    # È¥ÖØ
-    seen = set()
-    uniq = []
+                for it in (r.json().get("data") or [])[:20]:
+                    items.append({"title":it.get(nk,""),"hot":str(it.get(hk,""))})
+        except: pass
+    seen=set(); uniq=[]
     for it in items:
-        if it['title'] and it['title'] not in seen:
-            seen.add(it['title'])
-            uniq.append(it)
+        if it["title"] and it["title"] not in seen:
+            seen.add(it["title"]); uniq.append(it)
     return uniq[:30]
 
-
-def ai_rewrite(hot_items, keywords):
-    """ÓÃ AI °ÑÈÈµã¸ÄĞ´³ÉÑ¡ÌâÁé¸Ğ + ¶ş´´½Ç¶È¡£ÎŞ AI_API_KEY Ê±ÓÃ¹æÔòÄ£°å¡£"""
-    inspire = []
-    viral = []
-
+def ai_rewrite(hot, kw):
+    inspire=[]; viral=[]
     if AI_API_KEY:
         try:
-            prompt = (
-                f"ÎÒÊÇ×ö¡¸{keywords}¡¹ÈüµÀµÄ¶ÌÊÓÆµ´´×÷Õß£¨¼Ò¾Ó²©Ö÷£©¡£"
-                f"ÒÔÏÂÊÇ½ñÈÕÈÈµã£º{json.dumps([i['title'] for i in hot_items[:10]], ensure_ascii=False)}\n"
-                "Çë»ùÓÚÕâĞ©ÈÈµã£¬½áºÏ¼Ò¾Ó²©Ö÷ÈüµÀ£¬Éú³É£º\n"
-                "1. 10ÌõÑ¡ÌâÁé¸Ğ£¨title+tag+desc£¬Î§ÈÆ¼Ò¾Ó/ÊÕÄÉ/Èí×°/¸ÄÔì/ºÃÎï·ÖÏí£©\n"
-                "2. 10Ìõ¶ş´´½Ç¶È£¨title+angle£¬¿É¸úÅÄ¿É¸Ä±àµÄÈÈµã£©\n"
-                "ÓÃ JSON ·µ»Ø£¬¸ñÊ½£º{\"inspire\":[{\"title\",\"tag\",\"desc\"}],\"viral\":[{\"title\",\"angle\",\"hot\"}]}"
-            )
-            r = requests.post(
-                'https://api.openai.com/v1/chat/completions',
-                headers={'Authorization': f'Bearer {AI_API_KEY}'},
-                json={'model': 'gpt-4o-mini', 'messages': [{'role': 'user', 'content': prompt}], 'temperature': 0.8},
-                timeout=30
-            )
+            p="æˆ‘æ˜¯å®¶å±…åšä¸»èµ›é“åˆ›ä½œè€…ã€‚ä»Šæ—¥çƒ­ç‚¹ï¼š"+json.dumps([i["title"] for i in hot[:10]],ensure_ascii=False)+"è¯·ç”Ÿæˆ10æ¡é€‰é¢˜çµæ„Ÿå’Œ10æ¡äºŒåˆ›è§’åº¦ï¼Œè¿”å›JSON:{inspire:[{title,tag,desc}],viral:[{title,angle,hot}]}"
+            r=requests.post("https://api.openai.com/v1/chat/completions",headers={"Authorization":"Bearer "+AI_API_KEY},json={"model":"gpt-4o-mini","messages":[{"role":"user","content":p}],"temperature":0.8},timeout=30)
             if r.ok:
-                content = r.json()['choices'][0]['message']['content']
-                start = content.find('{')
-                end = content.rfind('}') + 1
-                if start >= 0 and end > start:
-                    parsed = json.loads(content[start:end])
-                    inspire = parsed.get('inspire', [])[:10]
-                    viral = parsed.get('viral', [])[:10]
-        except Exception as e:
-            print('AI µ÷ÓÃÊ§°Ü:', e)
-
-    # ¶µµ×£º¹æÔòÄ£°åÉú³É
+                c=r.json()["choices"][0]["message"]["content"]; s=c.find("{"); e=c.rfind("}")+1
+                if s>=0 and e>s:
+                    d=json.loads(c[s:e]); inspire=d.get("inspire",[])[:10]; viral=d.get("viral",[])[:10]
+        except Exception as ex: print("AI err:",ex)
     if not inspire:
-        kws = [k.strip() for k in keywords.split(',') if k.strip()]
-        pool = hot_items[:10] if hot_items else [{'title': f'¼Ò¾ÓÈÈµã{i+1}'} for i in range(10)]
-        for i, h in enumerate(pool):
-            kw = kws[i % len(kws)] if kws else '¼Ò¾Ó'
-            title = h.get('title', f'½ñÈÕÈÈµã{i+1}')
-            inspire.append({
-                'title': f'{kw}ÊÓ½Ç£º{title}',
-                'tag': 'Ñ¡Ìâ',
-                'desc': f'´Ó{kw}½Ç¶È½â¶Á¡¸{title}¡¹£¬½áºÏ¸öÈË¾­ÀúÊä³ö¹Ûµã¡£'
-            })
+        kws=[k.strip() for k in kw.split(",") if k.strip()]
+        pool=hot[:10] if hot else [{"title":"å®¶å±…çƒ­ç‚¹"+str(i+1)} for i in range(10)]
+        for i,h in enumerate(pool):
+            kw1=kws[i%len(kws)] if kws else "å®¶å±…"
+            t=h.get("title","ä»Šæ—¥çƒ­ç‚¹"+str(i+1))
+            inspire.append({"title":kw1+"è§†è§’ï¼š"+t,"tag":"é€‰é¢˜","desc":"ä»"+kw1+"è§’åº¦è§£è¯»ã€Œ"+t+"ã€"})
     if not viral:
-        pool = hot_items[:10] if hot_items else [{'title': f'¼Ò¾ÓÈÈµã{i+1}'} for i in range(10)]
-        for i, h in enumerate(pool):
-            title = h.get('title', f'½ñÈÕÈÈµã{i+1}')
-            viral.append({
-                'title': title,
-                'tag': 'ÈÈµã',
-                'hot': h.get('hot', 'ÈÈ¶ÈÉÏÉı'),
-                'angle': 'ÆÕÍ¨ÈËÊÓ½Ç¸´¿Ì£¬¼ÓÈë·´²îÓë¸öÈË¹Ûµã¡£'
-            })
-
+        pool=hot[:10] if hot else [{"title":"å®¶å±…çƒ­ç‚¹"+str(i+1)} for i in range(10)]
+        for i,h in enumerate(pool):
+            t=h.get("title","ä»Šæ—¥çƒ­ç‚¹"+str(i+1))
+            viral.append({"title":t,"tag":"çƒ­ç‚¹","hot":h.get("hot","çƒ­åº¦ä¸Šå‡"),"angle":"æ™®é€šäººè§†è§’å¤åˆ»"})
     return inspire[:10], viral[:10]
 
-
-def gen_teardown(keywords):
-    """Éú³É¼Ò¾ÓÈüµÀ±¬¿î²ğ½â°¸Àı£¨¹æÔòÄ£°å£¬AI¿ÉÓÃÊ±»á±»Ìæ»»£©"""
-    pool = [
-        {
-            'title': '³Á½şÊ½»Ø¼Òvlog£¨¼Ò¾Ó°æ£©',
-            'hook': '¿ªÃÅË²¼äÅ¯¹âÁÁÆğ£¬ASMRÔ¿³×Éù+ÌßĞ¬¶¯×÷£¬3Ãë½¨Á¢ÖÎÓú·ÕÎ§',
-            'structure': '¹³×Ó(¿ªÃÅ)¡ú¿Õ¼äÕ¹Ê¾(Ğş¹Ø¡ú¿ÍÌü¡úÎÔÊÒ)¡úºÃÎïÖ²Èë¡úÇéĞ÷ÊÕÎ²',
-            'highlights': 'µÚÒ»ÈË³ÆÊÓ½Ç+Èá¹âÂË¾µ£¬°ÑÆÕÍ¨»Ø¼ÒÅÄ³ÉµçÓ°¸Ğ£»Ã¿¸ö¿Õ¼ä×ÔÈ»´ø³ö1¸ö¼Ò¾ÓºÃÎï',
-            'reuse': '"»Ø¼ÒÒÇÊ½¸Ğ"Ä£°å£º¿ªÃÅ¶¯×÷+¿Õ¼äÕ¹Ê¾+ºÃÎïÖ²Èë£¬ÊÊºÏËùÓĞ¼Ò¾ÓÊÓÆµ'
-        },
-        {
-            'title': '500Ôª±¬¸Ä³ö×âÎİÎÔÊÒ',
-            'hook': '¸ÄÔìÇ°»­Ãæ»è°µÔÓÂÒ£¬×ÖÄ»"·¿¶«¿´µ½ÒªÕÇ×â"ÖÆÔì·´²îÆÚ´ı',
-            'structure': '¸ÄÔìÇ°Í´µã¡ú¹ºÎïÇåµ¥¡ú¸ÄÔì¹ı³Ì¡úÇ°ºó¶Ô±È¡ú¾­Ñé×Ü½á',
-            'highlights': 'Ç°ºó¶Ô±ÈÇ¿ÁÒ£»Ô¤ËãÊı×ÖÇåÎú£»ºÃÎïÇåµ¥¾ßÌå¿É³­',
-            'reuse': '"µÍ³É±¾¸ÄÔì"Ä£°å£ºÍ´µã+Ô¤Ëã+Çåµ¥+¹ı³Ì+¶Ô±È£¬ÊÊºÏÎÔÊÒ/³ø·¿/¿ÍÌü¸ÄÔì'
-        },
-        {
-            'title': 'Ğ¡»§ĞÍÊÕÄÉÉñÆ÷TOP10',
-            'hook': '"×¡ÁË5Äê£¬¶«Î÷Ô½ÂòÔ½¶à£¬È´Ô½×¡Ô½´ó"Ö±»÷ÊÕÄÉÍ´µã',
-            'structure': 'Í´µãÒıÈë¡ú10¼şÉñÆ÷ÖğÒ»Õ¹Ê¾¡úÊ¹ÓÃÇ°ºó¶Ô±È¡úÊÕÄÉĞÄ·¨×Ü½á',
-            'highlights': 'Ã¿¿î¶¼Õ¹Ê¾Ê¹ÓÃ³¡¾°ºÍĞ§¹û£»½Ú×à¿ì¡¢ĞÅÏ¢ÃÜ¶È¸ß£»½áÎ²ÓĞ·½·¨ÂÛÉı»ª',
-            'reuse': '"TOP10ºÃÎï"Ä£°å£ºÍ´µã+±àºÅÇåµ¥+³¡¾°Õ¹Ê¾+¶Ô±È+×Ü½á£¬¿É¸´ÖÆµ½Èí×°/Çå½à/³ø·¿ºÃÎï'
-        },
-        {
-            'title': '¶À¾ÓÅ®Éú°²È«¸ĞºÃÎï·ÖÏí',
-            'hook': '"Ò»¸öÈË×¡£¬ÕâĞ©¶«Î÷¾ÈÁËÎÒµÄÃü"ÖÆÔìÇé¸Ğ¹²Ãù+°²È«¸Ğ»°Ìâ',
-            'structure': 'Çé¸ĞÒıÈë¡úÍ´µã³¡¾°¡úºÃÎïÖğÒ»Õ¹Ê¾¡úÊ¹ÓÃÇ°ºó¶Ô±È¡úÅ¯ĞÄÊÕÎ²',
-            'highlights': '³¡¾°»¯ĞğÊÂÇ¿£»ºÃÎïÖ²Èë×ÔÈ»£»ÇéĞ÷¼ÛÖµ¸ß£¬Ò×Òı·¢ÊÕ²Ø×ª·¢',
-            'reuse': '"¶À¾ÓºÃÎï"Ä£°å£ºÇé¸Ğ+³¡¾°+ºÃÎï+¶Ô±È+ÊÕÎ²£¬ÊÊºÏ°²È«¸Ğ/ĞÒ¸£¸Ğ/ÒÇÊ½¸ĞÖ÷Ìâ'
-        },
-        {
-            'title': '×â·¿¸ÄÔìÇ°ºó¶Ô±È',
-            'hook': '¸ÄÔìÇ°»è°µÔÓÂÒ»­Ãæ+"·¿¶«²»ÈÃ¶¯"ÖÆÔìÏŞÖÆ¸Ğ£¬Òı·¢ºÃÆæ',
-            'structure': '¸ÄÔìÇ°Í´µã¡úÏŞÖÆËµÃ÷¡úÎŞËğ¸ÄÔì·½°¸¡úÇ°ºó¶Ô±È¡ú°á×ßÄÜ´ø×ßµÄºÃÎïÇåµ¥',
-            'highlights': 'Ç°ºó·´²îÇ¿ÁÒ£»Ç¿µ÷²»ÆÆ»µÔ­×°£»Çåµ¥ÊµÓÃ¿É³­',
-            'reuse': '"ÎŞËğ¸ÄÔì"Ä£°å£ºÍ´µã+ÏŞÖÆ+·½°¸+¶Ô±È+Çåµ¥£¬ÊÊºÏËùÓĞ×â·¿¸ÄÔìÄÚÈİ'
-        }
+def gen_teardown(kw):
+    return [
+        {"title":"æ²‰æµ¸å¼å›å®¶vlog","hook":"å¼€é—¨æš–å…‰äº®èµ·ASMR3ç§’æ²»æ„ˆ","structure":"é’©å­â†’ç©ºé—´â†’å¥½ç‰©â†’æ”¶å°¾","highlights":"ç¬¬ä¸€äººç§°+æŸ”å…‰","reuse":"å›å®¶ä»ªå¼æ„Ÿæ¨¡æ¿"},
+        {"title":"500å…ƒçˆ†æ”¹å‡ºç§Ÿå±‹","hook":"æ”¹é€ å‰æ˜æš—åˆ¶é€ åå·®","structure":"ç—›ç‚¹â†’æ¸…å•â†’è¿‡ç¨‹â†’å¯¹æ¯”","highlights":"å‰åå¯¹æ¯”å¼ºçƒˆ","reuse":"ä½æˆæœ¬æ”¹é€ æ¨¡æ¿"},
+        {"title":"å°æˆ·å‹æ”¶çº³TOP10","hook":"ä½äº†5å¹´è¶Šä½è¶Šå¤§","structure":"ç—›ç‚¹â†’10ä»¶â†’å¯¹æ¯”â†’æ€»ç»“","highlights":"åœºæ™¯åŒ–å±•ç¤º","reuse":"TOP10æ¨¡æ¿"},
+        {"title":"ç‹¬å±…å¥³ç”Ÿå®‰å…¨æ„Ÿå¥½ç‰©","hook":"ä¸€ä¸ªäººä½è¿™äº›æ•‘äº†æˆ‘","structure":"æƒ…æ„Ÿâ†’åœºæ™¯â†’å¥½ç‰©â†’å¯¹æ¯”","highlights":"æƒ…ç»ªä»·å€¼é«˜","reuse":"ç‹¬å±…å¥½ç‰©æ¨¡æ¿"},
+        {"title":"ç§Ÿæˆ¿æ”¹é€ å‰åå¯¹æ¯”","hook":"æˆ¿ä¸œä¸è®©åŠ¨å¼•å‘å¥½å¥‡","structure":"ç—›ç‚¹â†’é™åˆ¶â†’æ–¹æ¡ˆâ†’å¯¹æ¯”","highlights":"å¼ºè°ƒä¸ç ´ååŸè£…","reuse":"æ— æŸæ”¹é€ æ¨¡æ¿"}
     ]
-    return pool
 
+def make_payload(ins,vir,td):
+    return json.dumps({"date":TODAY,"inspire":ins,"viral":vir,"teardown":td},ensure_ascii=False,indent=2)
 
-def make_payload(inspire, viral, teardown):
-    return json.dumps({'date': TODAY, 'inspire': inspire, 'viral': viral, 'teardown': teardown}, ensure_ascii=False, indent=2)
+def push_gist(c):
+    if not GH_TOKEN: return False
+    r=requests.patch("https://api.github.com/gists/"+GIST_ID,headers={"Authorization":"token "+GH_TOKEN},json={"files":{"daily.json":{"content":c}}},timeout=15)
+    print("Gist:",r.status_code); return r.ok
 
-
-def push_gist(content):
-    """ÍÆËÍµ½ Gist"""
-    if not GH_TOKEN:
-        print('Î´ÅäÖÃ GH_TOKEN£¬Ìø¹ı Gist')
-        return False
-    payload = {
-        'description': '´´×÷¹¤×÷Ì¨Ã¿ÈÕÊı¾İ',
-        'files': {'daily.json': {'content': content}}
-    }
-    r = requests.patch(
-        f'https://api.github.com/gists/{GIST_ID}',
-        headers={'Authorization': f'token {GH_TOKEN}', 'Accept': 'application/vnd.github+json'},
-        json=payload, timeout=15
-    )
-    print('Gist ¸üĞÂ:', r.status_code)
-    return r.ok
-
-
-def push_repo_json(content):
-    """¸üĞÂ²Ö¿âÀïµÄ daily.json£¨Í¬Óò·ÃÎÊ£¬ÊÖ»ú²»±»Ç½£©"""
-    if not GH_TOKEN:
-        print('Î´ÅäÖÃ GH_TOKEN£¬Ìø¹ı²Ö¿â¸üĞÂ')
-        return False
-    headers = {'Authorization': f'token {GH_TOKEN}', 'Accept': 'application/vnd.github+json'}
-    # »ñÈ¡ÏÖÓĞÎÄ¼ş sha£¨Èô´æÔÚ£©
-    sha = None
+def push_repo(c):
+    if not GH_TOKEN: return False
+    h={"Authorization":"token "+GH_TOKEN}
+    sha=None
     try:
-        r = requests.get(f'https://api.github.com/repos/{REPO}/contents/daily.json', headers=headers, timeout=10)
-        if r.ok:
-            sha = r.json().get('sha')
-    except Exception:
-        pass
-    body = {'message': f'chore: ¸üĞÂÃ¿ÈÕÊı¾İ {TODAY}', 'content': base64.b64encode(content.encode()).decode(), 'branch': 'main'}
-    if sha:
-        body['sha'] = sha
-    r = requests.put(f'https://api.github.com/repos/{REPO}/contents/daily.json', headers=headers, json=body, timeout=15)
-    print('²Ö¿â daily.json ¸üĞÂ:', r.status_code)
-    return r.ok
-
+        r=requests.get("https://api.github.com/repos/"+REPO+"/contents/daily.json",headers=h,timeout=10)
+        if r.ok: sha=r.json().get("sha")
+    except: pass
+    b={"message":"update "+TODAY,"content":base64.b64encode(c.encode()).decode(),"branch":"main"}
+    if sha: b["sha"]=sha
+    r=requests.put("https://api.github.com/repos/"+REPO+"/contents/daily.json",headers=h,json=b,timeout=15)
+    print("repo:",r.status_code); return r.ok
 
 def main():
-    print(f'=== {TODAY} ²É¼¯ÈÎÎñ¿ªÊ¼ ===')
-    print('ÈüµÀ¹Ø¼ü´Ê:', TRACK_KEYWORDS)
-    hot = collect_hot()
-    print(f'²É¼¯µ½ÈÈµã {len(hot)} Ìõ')
-    inspire, viral = ai_rewrite(hot, TRACK_KEYWORDS)
-    teardown = gen_teardown(TRACK_KEYWORDS)
-    print(f'Éú³ÉÁé¸Ğ {len(inspire)} Ìõ, ¶ş´´ {len(viral)} Ìõ, ²ğ½â {len(teardown)} Ìõ')
-    content = make_payload(inspire, viral, teardown)
-    push_gist(content)
-    push_repo_json(content)
-    print('=== ²É¼¯ÈÎÎñÍê³É ===')
+    print("=== "+TODAY+" ===")
+    hot=collect_hot(); print("hot:",len(hot))
+    ins,vir=ai_rewrite(hot,TRACK_KEYWORDS)
+    td=gen_teardown(TRACK_KEYWORDS)
+    print("ins:",len(ins),"vir:",len(vir),"td:",len(td))
+    c=make_payload(ins,vir,td)
+    push_gist(c); push_repo(c)
+    print("=== done ===")
 
-
-if __name__ == '__main__':
-    main()
+if __name__=="__main__": main()
