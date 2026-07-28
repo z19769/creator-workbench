@@ -319,11 +319,8 @@ function def(){return{
     {id:uid('t'),text:'回复评论互动',done:false}
   ],
   review:[],
-  teardown:[
-    {id:uid('td'),title:'沉浸式回家vlog（家居版）',date:'示例',hook:'开门瞬间暖光亮起，ASMR钥匙声+踢鞋动作，3秒建立治愈氛围',structure:'钩子(开门)→空间展示(玄关→客厅→卧室)→好物植入→情绪收尾',highlights:'用第一人称视角+柔光滤镜，把普通回家拍成电影感；每个空间自然带出1个家居好物',reuse:'“回家仪式感”模板：开门动作+空间展示+好物植入，适合所有家居视频'},
-    {id:uid('td'),title:'500元爆改出租屋卧室',date:'示例',hook:'改造前画面昏暗杂乱，字幕“房东看到要涨租”制造反差期待',structure:'改造前痛点→购物清单→改造过程→前后对比→租房改造经验总结',highlights:'前后对比强烈；预算数字清晰；好物清单具体可抄',reuse:'“低成本改造”模板：痛点+预算+清单+过程+对比，适合卧室/厨房/客厅改造'},
-    {id:uid('td'),title:'小户型收纳神器TOP10',date:'示例',hook:'“住了5年，东西越买越多，却越住越大”直击收纳痛点',structure:'痛点引入→10件神器逐一展示→使用前后对比→收纳心法总结',highlights:'每款都展示使用场景和效果；节奏快、信息密度高；结尾有方法论升华',reuse:'“TOP10好物”模板：痛点+编号清单+场景展示+使用对比+总结，可复制到软装/清洁/厨房好物'}
-  ],
+  teardown:[],
+  teardownCache:null,
   memo:[
     {id:uid('m'),text:'',done:false},
     {id:uid('m'),text:'',done:false},
@@ -513,20 +510,32 @@ function copyText(t){
 }
 
 /* ============ Teardown (爆款拆解) ============ */
-function renderTeardown(){
+async function renderTeardown(force){
   const box=document.getElementById('teardownList');
-  const items=state.teardown||[];
-  if(!items.length){box.innerHTML='<div class="empty">还没有拆解记录</div>';return}
-  box.innerHTML=items.map(t=>`
-    <div class="card">
-      <button class="card-del show" data-del="${t.id}">${I.trash}</button>
+  const localItems=state.teardown||[];
+  let cloudItems=state.teardownCache||[];
+  if(force||(!state.teardownCache&&state.cacheDate===today())){
+    box.innerHTML='<div class="loading"><div class="spinner"></div>正在拉取今日拆解…</div>';
+    const g=await fetchDaily();
+    if(g&&g.teardown){
+      state.teardownCache=g.teardown;state.cacheDate=today();save();
+      cloudItems=g.teardown;
+    }
+  }
+  const all=[...cloudItems,...localItems];
+  if(!all.length){box.innerHTML='<div class="empty">还没有拆解记录</div>';return}
+  box.innerHTML=all.map((t,idx)=>{
+    const isLocal=idx>=cloudItems.length;
+    return `<div class="card">
+      ${isLocal?`<button class="card-del show" data-del="${t.id}">${I.trash}</button>`:''}
       <div class="card-title">${esc(t.title)}</div>
-      <div class="ci-meta">${esc(t.date)}</div>
+      <div class="ci-meta">${esc(t.date)}${isLocal?'':' · 今日推荐'}</div>
       ${t.hook?`<div class="card-desc"><b>🎯 开头钩子：</b>${esc(t.hook)}</div>`:''}
       ${t.structure?`<div class="card-desc"><b>📐 结构：</b>${esc(t.structure)}</div>`:''}
       ${t.highlights?`<div class="card-desc"><b>✨ 亮点：</b>${esc(t.highlights)}</div>`:''}
       ${t.reuse?`<div class="card-desc"><b>🔄 可复用：</b>${esc(t.reuse)}</div>`:''}
-    </div>`).join('');
+    </div>`;
+  }).join('');
   box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{state.teardown=state.teardown.filter(x=>x.id!==b.dataset.del);save();renderTeardown()});
 }
 document.getElementById('teardownAdd').onclick=()=>openModal('teardown');
