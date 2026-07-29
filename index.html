@@ -213,14 +213,14 @@ ul{list-style:none}
 
     <section class="page" id="page-quote">
       <div class="page-title">✨ 励志成长文案</div>
-      <div class="page-sub">每日一句 · 随时更新 · 可复制使用</div>
+      <div class="page-sub">每日自动更新 · 可复制使用 · 也可手动添加</div>
       <div id="quoteList"></div>
       <button class="add-btn" id="quoteAdd">➕ 添加文案</button>
     </section>
 
     <section class="page" id="page-english">
       <div class="page-title">🔤 英语练习</div>
-      <div class="page-sub">每日单词/句子 · 打卡记录</div>
+      <div class="page-sub">每日自动更新 · 打卡记录 · 也可手动添加</div>
       <div id="englishList"></div>
       <button class="add-btn" id="englishAdd">➕ 添加练习</button>
     </section>
@@ -274,7 +274,9 @@ function def(){return{
   teardown:[],
   teardownCache:null,
   quote:[],
+  quoteCache:null,
   english:[],
+  englishCache:null,
   sport:[
     {id:uid('s'),text:'跑步 30 分钟',done:false},
     {id:uid('s'),text:'普拉提 1 小时',done:false},
@@ -371,20 +373,24 @@ function renderReview(){
 }
 document.getElementById('reviewAdd').onclick=()=>openModal('review');
 /* 励志文案 */
-function renderQuote(){
-  const box=document.getElementById('quoteList');const items=state.quote||[];
-  if(!items.length){box.innerHTML='<div class="empty">'+I.empty+'还没有文案记录</div>';return}
-  box.innerHTML=items.map(q=>`<div class="card"><button class="card-del show" data-del="${q.id}">🗑</button><div class="card-desc" style="font-size:15px;font-weight:600;color:var(--text)">${esc(q.text)}</div>${q.source?`<div class="ci-meta">— ${esc(q.source)}</div>`:''}<div class="card-actions"><button class="btn-mini" data-copy="${encodeURIComponent(q.text)}">📋 复制</button></div></div>`).join('');
+async function renderQuote(force){
+  const box=document.getElementById('quoteList');const localItems=state.quote||[];let cloudItems=state.quoteCache||[];
+  if(force||(!state.quoteCache&&state.cacheDate===today())){box.innerHTML='<div class="loading"><div class="spinner"></div>正在拉取今日文案…</div>';const g=await fetchDaily();if(g&&g.quote){state.quoteCache=g.quote;state.cacheDate=today();save();cloudItems=g.quote}}
+  const all=[...cloudItems.map(q=>({...q,cloud:true})),...localItems];
+  if(!all.length){box.innerHTML='<div class="empty">'+I.empty+'还没有文案记录</div>';return}
+  box.innerHTML=all.map(q=>`<div class="card">${!q.cloud?`<button class="card-del show" data-del="${q.id}">🗑</button>`:''}<div class="card-desc" style="font-size:15px;font-weight:600;color:var(--text)">${esc(q.text)}</div>${q.source?`<div class="ci-meta">— ${esc(q.source)}${q.cloud?' · ✨今日推荐':''}</div>`:''}<div class="card-actions"><button class="btn-mini" data-copy="${encodeURIComponent(q.text)}">📋 复制</button></div></div>`).join('');
   box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{state.quote=state.quote.filter(x=>x.id!==b.dataset.del);save();renderQuote()});
   box.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{copyText(decodeURIComponent(b.dataset.copy));toast('已复制文案')});
 }
 document.getElementById('quoteAdd').onclick=()=>openModal('quote');
 /* 英语练习 */
-function renderEnglish(){
-  const box=document.getElementById('englishList');const items=state.english||[];
-  if(!items.length){box.innerHTML='<div class="empty">'+I.empty+'还没有练习记录</div>';return}
-  box.innerHTML=items.map(e=>`<div class="check-item ${e.done?'done':''}" data-id="${e.id}"><div class="checkbox">${I.check}</div><div class="ci-body"><div class="ci-text">${esc(e.text)}</div>${e.note?`<div class="ci-meta">${esc(e.note)}</div>`:''}</div><button class="ci-del" data-del="${e.id}">🗑</button></div>`).join('');
-  box.querySelectorAll('.check-item').forEach(el=>{el.querySelector('.checkbox').onclick=()=>{const e=state.english.find(x=>x.id===el.dataset.id);if(e){e.done=!e.done;save();renderEnglish()}};el.querySelector('.ci-del').onclick=ev=>{ev.stopPropagation();state.english=state.english.filter(x=>x.id!==el.dataset.id);save();renderEnglish()}});
+async function renderEnglish(force){
+  const box=document.getElementById('englishList');const localItems=state.english||[];let cloudItems=state.englishCache||[];
+  if(force||(!state.englishCache&&state.cacheDate===today())){box.innerHTML='<div class="loading"><div class="spinner"></div>正在拉取今日练习…</div>';const g=await fetchDaily();if(g&&g.english){state.englishCache=g.english;state.cacheDate=today();save();cloudItems=g.english}}
+  const all=[...cloudItems.map(e=>({...e,cloud:true})),...localItems];
+  if(!all.length){box.innerHTML='<div class="empty">'+I.empty+'还没有练习记录</div>';return}
+  box.innerHTML=all.map(e=>`<div class="check-item ${e.done?'done':''}" data-id="${e.id}"><div class="checkbox">${I.check}</div><div class="ci-body"><div class="ci-text">${esc(e.text)}</div>${e.note?`<div class="ci-meta">${esc(e.note)}${e.cloud?' · ✨今日推荐':''}</div>`:''}</div>${e.cloud?'':`<button class="ci-del" data-del="${e.id}">🗑</button>`}</div>`).join('');
+  box.querySelectorAll('.check-item').forEach(el=>{el.querySelector('.checkbox').onclick=()=>{const e=all.find(x=>x.id===el.dataset.id);if(e){e.done=!e.done;save();renderEnglish()}};const delBtn=el.querySelector('.ci-del');if(delBtn)delBtn.onclick=ev=>{ev.stopPropagation();state.english=state.english.filter(x=>x.id!==el.dataset.id);save();renderEnglish()}});
 }
 document.getElementById('englishAdd').onclick=()=>openModal('english');
 /* 运动 */
@@ -404,9 +410,9 @@ function renderMemo(){
 function addMemoLine(){state.memo.push({id:uid('m'),text:'',done:false});save();renderMemo();setTimeout(()=>{const ls=document.querySelectorAll('.memo-line');const last=ls[ls.length-1];if(last)last.querySelector('input').focus()},50)}
 document.getElementById('memoAdd').onclick=addMemoLine;
 function render(p){
-  if(p==='plan')renderPlan();else if(p==='inspire')renderInspire(false);else if(p==='viral')renderViral(false);else if(p==='teardown')renderTeardown();else if(p==='review')renderReview();else if(p==='quote')renderQuote();else if(p==='english')renderEnglish();else if(p==='sport')renderSport();else if(p==='memo')renderMemo();
+  if(p==='plan')renderPlan();else if(p==='inspire')renderInspire(false);else if(p==='viral')renderViral(false);else if(p==='teardown')renderTeardown();else if(p==='review')renderReview();else if(p==='quote')renderQuote(false);else if(p==='english')renderEnglish(false);else if(p==='sport')renderSport();else if(p==='memo')renderMemo();
 }
-document.getElementById('refreshBtn').onclick=async()=>{if(curPage==='inspire'){await renderInspire(true);toast('已刷新灵感')}else if(curPage==='viral'){await renderViral(true);toast('已刷新热点')}else{toast('本页无需刷新')}};
+document.getElementById('refreshBtn').onclick=async()=>{if(curPage==='inspire'){await renderInspire(true);toast('已刷新灵感')}else if(curPage==='viral'){await renderViral(true);toast('已刷新热点')}else if(curPage==='quote'){await renderQuote(true);toast('已刷新文案')}else if(curPage==='english'){await renderEnglish(true);toast('已刷新练习')}else{toast('本页无需刷新')}};
 const modalMask=document.getElementById('modalMask'),modalBox=document.getElementById('modalBox');
 let modalMode=null;
 function openModal(mode){
@@ -432,7 +438,7 @@ document.getElementById('modalOk').onclick=()=>{
 };
 function initDate(){const d=new Date();const w=['日','一','二','三','四','五','六'][d.getDay()];document.getElementById('todayStr').textContent=`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日 · 星期${w}`}
 initDate();renderPlan();
-(function(){var v='20260729a';var k='wb_ver';if(localStorage.getItem(k)!==v){localStorage.setItem(k,v);location.reload(true)}})();
+(function(){var v='20260729b';var k='wb_ver';if(localStorage.getItem(k)!==v){localStorage.setItem(k,v);location.reload(true)}})();
 </script>
 </body>
 </html>
