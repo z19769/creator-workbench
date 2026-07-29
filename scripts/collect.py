@@ -29,7 +29,7 @@ def ai_rewrite(hot, kw):
     inspire=[]; viral=[]
     if AI_API_KEY:
         try:
-            p="我是家居博主赛道创作者。今日热点："+json.dumps([i["title"] for i in hot[:10]],ensure_ascii=False)+"请生成10条选题灵感和10条二创角度，返回JSON:{inspire:[{title,tag,desc}],viral:[{title,angle,hot}]}"
+            p="我是家居博主，刚装修完，专注全屋定制收纳柜、柜子收纳、角落改造、家电首测方向。今日热点："+json.dumps([i["title"] for i in hot[:10]],ensure_ascii=False)+"请结合这4个方向生成10条选题灵感和10条二创角度，返回JSON:{inspire:[{title,tag,desc}],viral:[{title,angle,hot}]}"
             r=requests.post("https://api.openai.com/v1/chat/completions",headers={"Authorization":"Bearer "+AI_API_KEY},json={"model":"gpt-4o-mini","messages":[{"role":"user","content":p}],"temperature":0.8},timeout=30)
             if r.ok:
                 c=r.json()["choices"][0]["message"]["content"]; s=c.find("{"); e=c.rfind("}")+1
@@ -37,18 +37,55 @@ def ai_rewrite(hot, kw):
                     d=json.loads(c[s:e]); inspire=d.get("inspire",[])[:10]; viral=d.get("viral",[])[:10]
         except Exception as ex: print("AI err:",ex)
     if not inspire:
-        kws=[k.strip() for k in kw.split(",") if k.strip()]
-        pool=hot[:10] if hot else [{"title":"家居热点"+str(i+1)} for i in range(10)]
-        for i,h in enumerate(pool):
-            kw1=kws[i%len(kws)] if kws else "家居"
-            t=h.get("title","今日热点"+str(i+1))
-            inspire.append({"title":kw1+"视角："+t,"tag":"选题","desc":"从"+kw1+"角度解读「"+t+"」"})
+        inspire=gen_inspire()
     if not viral:
-        pool=hot[:10] if hot else [{"title":"家居热点"+str(i+1)} for i in range(10)]
-        for i,h in enumerate(pool):
-            t=h.get("title","今日热点"+str(i+1))
-            viral.append({"title":t,"tag":"热点","hot":h.get("hot","热度上升"),"angle":"普通人视角复刻"})
+        viral=gen_viral(hot)
     return inspire[:10], viral[:10]
+
+def gen_inspire():
+    pool=[
+        {"title":"全屋定制收纳柜入坑指南：这些坑千万别踩","tag":"全屋定制","desc":"分享全屋定制收纳柜的常见坑和避坑方法"},
+        {"title":"入墙收纳柜 vs 独立柜，到底怎么选","tag":"全屋定制","desc":"入墙柜和独立柜的优缺点对比，帮粉丝避坑"},
+        {"title":"衣帽间定制柜子怎么做最实用","tag":"柜子收纳","desc":"衣帽间定制柜的尺寸、层板分配和细节设计"},
+        {"title":"厨房抽屉收纳神器，拿来就能用","tag":"柜子收纳","desc":"厨房抽屉的收纳分区和常用物品归纳方案"},
+        {"title":"玄关改造记：1平米角落变身小咖啡角","tag":"角落改造","desc":"玄关/走廊角落的改造思路和实操过程"},
+        {"title":"阳台角落改造：从堆杂物到污心小苑","tag":"角落改造","desc":"阳台角落的改造方案和绿植搜索建议"},
+        {"title":"洗衣机首次使用开箱测评","tag":"家电首测","desc":"新买洗衣机的开箱、安装、首次使用全过程"},
+        {"title":"扫地机首测：入住新房第一台智能家电","tag":"家电首测","desc":"扫地机的开箱体验、实际清洁效果和使用感受"},
+        {"title":"全屋定制柜子尺寸怎么算才不后悔","tag":"全屋定制","desc":"定制柜子前如何正确测量尺寸和规划布局"},
+        {"title":"卧室衣柜收纳改造，拆了重做后太香了","tag":"柜子收纳","desc":"旧衣柜改造或重做的收纳方案，前后对比"},
+        {"title":"卫生间角落改造：拉箱变身洗护区","tag":"角落改造","desc":"卫生间角落的收纳改造和空间利用"},
+        {"title":"烤箱首次用，新手烘焙入门指南","tag":"家电首测","desc":"烤箱开箱、首次使用、第一次烘焙的完整体验"},
+        {"title":"定制柜子板材怎么选：颗粒板 vs 克能板","tag":"全屋定制","desc":"定制柜子常见板材的优缺点对比和选购建议"},
+        {"title":"床底收纳柜，小户型必须安排","tag":"柜子收纳","desc":"床底收纳柜的定制方案和收纳技巧"},
+        {"title":"楼梯下角落改造，各种奇葩角落利用","tag":"角落改造","desc":"楼梯下、过道、梅花角等鸡肋角落的改造方案"},
+        {"title":"新风柜首测：这台柜子插电后太香了","tag":"家电首测","desc":"新风柜的开箱、安装、使用感受和避坑建议"},
+        {"title":"定制书柜怎么做才能装下所有书","tag":"全屋定制","desc":"书柜定制的尺寸规划、层板设计和收纳技巧"},
+        {"title":"厨房调味柜收纳改造，台面终于不乱了","tag":"柜子收纳","desc":"厨房调味柜/料理柜的收纳改造方案"},
+        {"title":"电视墙背景墙角落改造，客厅颜值翻倍","tag":"角落改造","desc":"电视墙周边角落的装饰改造和收纳方案"},
+        {"title":"洗碗机首次用，入户必看使用教程","tag":"家电首测","desc":"洗碗机开箱安装、首次使用、日常维护全攻略"},
+    ]
+    random.shuffle(pool)
+    return pool[:10]
+
+def gen_viral(hot):
+    pool=[
+        {"title":"全屋定制收纳柜入坑总结","tag":"热点","hot":"热度上升","angle":"短视频抢答式分享避坑经验"},
+        {"title":"定制柜子前后对比","tag":"热点","hot":"热度上升","angle":"改造前后反差视频"},
+        {"title":"角落改造前后对比","tag":"热点","hot":"热度上升","angle":"改造前后对比+改造过程记录"},
+        {"title":"家电开箱测评","tag":"热点","hot":"热度上升","angle":"沉浸式开箱ASMR+首次使用体验"},
+        {"title":"全屋定制收纳柜设计方案","tag":"热点","hot":"热度上升","angle":"详细展示各个空间的柜子设计"},
+        {"title":"小户型柜子收纳技巧","tag":"热点","hot":"热度上升","angle":"小户型收纳技巧集锡"},
+        {"title":"角落改造创意方案","tag":"热点","hot":"热度上升","angle":"鸡肋角落改造创意展示"},
+        {"title":"家电使用技巧","tag":"热点","hot":"热度上升","angle":"家电使用小技巧合集"},
+        {"title":"衣帽间收纳改造","tag":"热点","hot":"热度上升","angle":"衣帽间收纳改造全过程"},
+        {"title":"厨房收纳改造","tag":"热点","hot":"热度上升","angle":"厨房收纳改造记录"},
+    ]
+    if hot:
+        for h in hot[:5]:
+            pool.append({"title":h.get("title","热点"),"tag":"热点","hot":h.get("hot","热度上升"),"angle":"家居视角解读"})
+    random.shuffle(pool)
+    return pool[:10]
 
 def gen_teardown(kw):
     return [
