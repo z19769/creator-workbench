@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import os, json, base64, datetime, requests
+import os, json, base64, datetime, requests, random
 
 GH_TOKEN = os.environ.get("GH_TOKEN", "")
 GIST_ID = os.environ.get("GIST_ID", "ae7b610eadb34a38e0cd76a28bb3360f")
@@ -59,8 +59,60 @@ def gen_teardown(kw):
         {"title":"租房改造前后对比","hook":"房东不让动引发好奇","structure":"痛点→限制→方案→对比","highlights":"强调不破坏原装","reuse":"无损改造模板"}
     ]
 
-def make_payload(ins,vir,td):
-    return json.dumps({"date":TODAY,"inspire":ins,"viral":vir,"teardown":td},ensure_ascii=False,indent=2)
+def gen_quote():
+    pool = [
+        {"text":"你只管努力，剩下的交给时间","source":"网络"},
+        {"text":"明天的你会感谢今天拼命的自己","source":"网络"},
+        {"text":"家是平凡生活里的光，是每一天的期待","source":"家居博主金句"},
+        {"text":"不负时光，不负自己，人生没有白走的路","source":"网络"},
+        {"text":"将来的你一定会感谢现在咬牙坚持的自己","source":"网络"},
+        {"text":"生活的美好从不是等来的，而是一点一滴营造的","source":"家居博主金句"},
+        {"text":"人生没有重来，但可以重新出发","source":"网络"},
+        {"text":"每个认真生活的人都值得被认真对待","source":"网络"},
+        {"text":"世界很大，但家是唯一的底色","source":"家居博主金句"},
+        {"text":"你不负光芒，光芒自会为你亮","source":"网络"},
+        {"text":"努力不是为了超越别人，而是为了遇见更好的自己","source":"网络"},
+        {"text":"把每一天过成作品，而不是任务","source":"网络"},
+        {"text":"生活的质感从不在于价格，而在于用心","source":"家居博主金句"},
+        {"text":"别让明天的烦恼浪费今天的美好","source":"网络"},
+        {"text":"坚持是最难的，但也是最值得的","source":"网络"},
+        {"text":"你的生活就是你的作品，认真的人最美","source":"网络"},
+        {"text":"所有的美好都是从一点一滴的累积开始的","source":"家居博主金句"},
+        {"text":"人生最大的成就就是让自己活成想要的样子","source":"网络"},
+        {"text":"不管多难的日子，请记得给自己一束光","source":"网络"},
+        {"text":"生活不是等风晋，而是自己去造风","source":"家居博主金句"},
+    ]
+    random.shuffle(pool)
+    return pool[:10]
+
+def gen_english():
+    pool = [
+        {"text":"practice makes perfect","note":"熟能生巧 — 反复练习是精通的关键"},
+        {"text":"home is where the heart is","note":"心在哪里，家就在哪里 — 家的温暖在于心"},
+        {"text":"less is more","note":"少即是多 — 极简生活哲学"},
+        {"text":"make yourself at home","note":"别客气，当自己家 — 待客常用语"},
+        {"text":"home sweet home","note":"金窝银窝不如自己的草窝 — 表达对家的思念"},
+        {"text":"a place for everything and everything in its place","note":"物各其位 — 收纳整理的经典格言"},
+        {"text":"keep going, never give up","note":"继续前进，永不放弃 — 励志常用句"},
+        {"text":"every day is a new beginning","note":"每天都是新的开始 — 積极生活态度"},
+        {"text":"slow and steady wins the race","note":"稳打稳赢得比赛 — 坚持的力量"},
+        {"text":"the best is yet to come","note":"最好的还在后头 — 充满希望的话"},
+        {"text":"dream big, start small","note":"梦想要大，从小做起 — 行动力格言"},
+        {"text":"where there is a will, there is a way","note":"有志者事竟成 — 经典谚语"},
+        {"text":"be the change you wish to see","note":"成为你想看到的改变 — 自我成长金句"},
+        {"text":"light up your life","note":"点亮你的生活 — 家居照明相关"},
+        {"text":"cozy and warm","note":"温馆舒适 — 家居常用形容词"},
+        {"text":"declutter your space, declutter your mind","note":"整理空间，清理心灵 — 收纳的哲学"},
+        {"text":"stay positive, work hard, make it happen","note":"保持积极，努力工作，让它成真 — 励志短句"},
+        {"text":"detail makes difference","note":"细节决定成败 — 家居设计格言"},
+        {"text":"a tidy home, a tidy mind","note":"整洁的家，清晰的心智 — 收纳理念"},
+        {"text":"turn your house into a home","note":"把房子变成家 — 软装理念"},
+    ]
+    random.shuffle(pool)
+    return pool[:10]
+
+def make_payload(ins,vir,td,qe,en):
+    return json.dumps({"date":TODAY,"inspire":ins,"viral":vir,"teardown":td,"quote":qe,"english":en},ensure_ascii=False,indent=2)
 
 def push_gist(c):
     if not GH_TOKEN: return False
@@ -85,8 +137,10 @@ def main():
     hot=collect_hot(); print("hot:",len(hot))
     ins,vir=ai_rewrite(hot,TRACK_KEYWORDS)
     td=gen_teardown(TRACK_KEYWORDS)
-    print("ins:",len(ins),"vir:",len(vir),"td:",len(td))
-    c=make_payload(ins,vir,td)
+    qe=gen_quote()
+    en=gen_english()
+    print("ins:",len(ins),"vir:",len(vir),"td:",len(td),"quote:",len(qe),"english:",len(en))
+    c=make_payload(ins,vir,td,qe,en)
     push_gist(c); push_repo(c)
     print("=== done ===")
 
